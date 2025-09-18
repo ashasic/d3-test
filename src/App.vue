@@ -1,4 +1,6 @@
 <script setup>
+import Chart from "./components/Charts.vue";
+const message = "Hello from Naimul!";
 
 </script>
 
@@ -7,7 +9,7 @@
 
     <div class="row">
       <div class="col">
-        <h1>Sample Vue App with Bootstrap</h1>
+        <h1>{{ message }}</h1>
       </div>
     </div>
 
@@ -15,7 +17,7 @@
 
     <div class="row">
       <div class="col">
-        <p>This is a paragraph.</p>
+        <Chart />
       </div>
     </div>
 
