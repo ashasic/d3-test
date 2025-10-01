@@ -1,7 +1,7 @@
 @import './base.css';
 
 #app {
-  max-width: 1280px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
   font-weight: normal;
@@ -28,8 +28,23 @@ a,
   }
 
   #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: block;
+    width: 100%;
     padding: 0 2rem;
   }
+}
+
+.chart-container {
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.chart-title {
+  color: #333;
+  font-weight: bold;
+  margin-bottom: 15px;
+  text-align: center;
 }
