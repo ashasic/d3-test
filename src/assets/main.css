@@ -1,7 +1,7 @@
 @import './base.css';
 
 #app {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 2rem;
   font-weight: normal;
@@ -31,6 +31,7 @@ a,
     display: block;
     width: 100%;
     padding: 0 2rem;
+    min-width: 1200px;
   }
 }
 
@@ -47,4 +48,15 @@ a,
   font-weight: bold;
   margin-bottom: 15px;
   text-align: center;
+}
+
+.container-fluid {
+  padding: 0 40px;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 2rem;
 }

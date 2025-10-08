@@ -1,33 +1,10 @@
 <template>
   <div class="dashboard-container">
     <div class="row">
-      <div class="col-lg-6 col-md-12 mb-4">
+      <div class="col-12">
         <div class="chart-container">
-          <h3 class="chart-title">Top 20 Countries by Life Expectancy</h3>
-          <div ref="barChart" class="chart"></div>
-        </div>
-      </div>
-      
-      <div class="col-lg-6 col-md-12 mb-4">
-        <div class="chart-container">
-          <h3 class="chart-title">Life Expectancy Over Time</h3>
-          <div ref="lineChart" class="chart"></div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="row">
-      <div class="col-lg-6 col-md-12 mb-4">
-        <div class="chart-container">
-          <h3 class="chart-title">GDP vs Population</h3>
-          <div ref="scatterPlot" class="chart"></div>
-        </div>
-      </div>
-      
-      <div class="col-lg-6 col-md-12 mb-4">
-        <div class="chart-container">
-          <h3 class="chart-title">Life Expectancy by Continent</h3>
-          <div ref="pieChart" class="chart"></div>
+          <h3 class="chart-title">Iris Dataset Scatterplot Matrix</h3>
+          <div ref="scatterMatrix" class="chart"></div>
         </div>
       </div>
     </div>
@@ -38,423 +15,455 @@
 import { ref, onMounted } from "vue";
 import * as d3 from "d3";
 
-const barChart = ref(null);
-const lineChart = ref(null);
-const scatterPlot = ref(null);
-const pieChart = ref(null);
-
+const scatterMatrix = ref(null);
 let data = [];
 
 onMounted(async () => {
   try {
-    data = await d3.csv("/gapminder_data.csv", d => ({
-      country: d.country,
-      year: +d.year,
-      pop: +d.pop,
-      continent: d.continent,
-      lifeExp: +d.lifeExp,
-      gdpPercap: +d.gdpPercap
+    data = await d3.csv("/src/assets/iris.csv", d => ({
+      "sepal.length": +d["sepal.length"],
+      "sepal.width": +d["sepal.width"],
+      "petal.length": +d["petal.length"],
+      "petal.width": +d["petal.width"],
+      variety: d.variety
     }));
     
-    drawBarChart();
-    drawLineChart();
-    drawScatterPlot();
-    drawPieChart();
+    drawScatterMatrix();
   } catch (error) {
     console.error("Error loading data:", error);
   }
 });
 
-function drawBarChart() {
-  const margin = { top: 20, right: 20, bottom: 80, left: 60 };
-  const width = 500 - margin.left - margin.right;
-  const height = 400 - margin.bottom - margin.top;
+function drawScatterMatrix() {
+  d3.select(scatterMatrix.value).selectAll("*").remove();
 
-  d3.select(barChart.value).selectAll("*").remove();
+  const width = 1200;
+  const height = width;
+  const padding = 60;
+  const columns = ["sepal.length", "sepal.width", "petal.length", "petal.width"];
+  const size = (width - (columns.length + 1) * padding) / columns.length + padding;
 
-  const svg = d3.select(barChart.value)
-    .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom);
+  // Create popup
+  const popup = d3.select("body").selectAll(".popup")
+    .data([1])
+    .join("div")
+    .attr("class", "popup")
+    .style("display", "none");
 
-  const g = svg.append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
+  popup.append("div")
+    .attr("class", "popup-close")
+    .text("×")
+    .on("click", () => popup.style("display", "none"));
 
-  const latestYear = d3.max(data, d => d.year);
-  const latestData = data.filter(d => d.year === latestYear)
-    .sort((a, b) => b.lifeExp - a.lifeExp)
-    .slice(0, 20);
+  popup.append("div")
+    .attr("class", "popup-content");
 
-  const x = d3.scaleBand()
-    .domain(latestData.map(d => d.country))
-    .range([0, width])
-    .padding(0.1);
+  const x = columns.map(c => d3.scaleLinear()
+      .domain(d3.extent(data, d => d[c]))
+      .rangeRound([padding / 2, size - padding / 2]));
 
-  const y = d3.scaleLinear()
-    .domain([0, d3.max(latestData, d => d.lifeExp)])
-    .range([height, 0]);
+  const y = x.map(x => x.copy().range([size - padding / 2, padding / 2]));
 
   const color = d3.scaleOrdinal()
-    .domain(latestData.map(d => d.continent))
-    .range(d3.schemeSet2);
+      .domain(data.map(d => d.variety))
+      .range(d3.schemeCategory10);
 
-  g.selectAll(".bar")
-    .data(latestData)
-    .enter().append("rect")
-    .attr("class", "bar")
-    .attr("x", d => x(d.country))
-    .attr("width", x.bandwidth())
-    .attr("y", d => y(d.lifeExp))
-    .attr("height", d => height - y(d.lifeExp))
-    .attr("fill", d => color(d.continent))
-    .on("mouseover", function(event, d) {
-      d3.select(this).attr("opacity", 0.7);
-      
-      const tooltip = d3.select("body").append("div")
-        .attr("class", "tooltip")
-        .style("opacity", 0);
-      
-      tooltip.transition()
-        .duration(200)
-        .style("opacity", .9);
-      tooltip.html(`${d.country}<br/>Life Exp: ${d.lifeExp.toFixed(1)} years`)
-        .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY - 28) + "px");
-    })
-    .on("mouseout", function() {
-      d3.select(this).attr("opacity", 1);
-      d3.selectAll(".tooltip").remove();
-    });
+  const svg = d3.select(scatterMatrix.value)
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("viewBox", [-padding, 0, width, height]);
 
-  g.append("g")
-    .attr("transform", `translate(0,${height})`)
-    .call(d3.axisBottom(x))
-    .selectAll("text")
-    .style("text-anchor", "end")
-    .attr("dx", "-.8em")
-    .attr("dy", ".15em")
-    .attr("transform", "rotate(-45)");
-
-  g.append("g")
-    .call(d3.axisLeft(y));
-
-  g.append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("y", 0 - margin.left)
-    .attr("x", 0 - (height / 2))
-    .attr("dy", "1em")
-    .style("text-anchor", "middle")
-    .text("Life Expectancy");
-}
-
-function drawLineChart() {
-  const margin = { top: 20, right: 80, bottom: 50, left: 60 };
-  const width = 500 - margin.left - margin.right;
-  const height = 400 - margin.bottom - margin.top;
-
-  d3.select(lineChart.value).selectAll("*").remove();
-
-  const svg = d3.select(lineChart.value)
-    .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom);
-
-  const g = svg.append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-  const continentData = d3.group(data, d => d.continent);
-  const aggregatedData = [];
-
-  continentData.forEach((values, continent) => {
-    const yearData = d3.rollup(values, 
-      v => d3.mean(v, d => d.lifeExp), 
-      d => d.year
-    );
+  // Functions (defined after svg is created)
+  const showPointPopup = (d, event) => {
+    console.log("showPointPopup called with:", d);
+    const content = popup.select(".popup-content");
+    content.html(`
+      <h3>${d.variety}</h3>
+      <div class="popup-details">
+        <div><strong>Sepal Length:</strong> ${d["sepal.length"]} cm</div>
+        <div><strong>Sepal Width:</strong> ${d["sepal.width"]} cm</div>
+        <div><strong>Petal Length:</strong> ${d["petal.length"]} cm</div>
+        <div><strong>Petal Width:</strong> ${d["petal.width"]} cm</div>
+      </div>
+    `);
     
-    yearData.forEach((lifeExp, year) => {
-      aggregatedData.push({ continent, year, lifeExp });
+    popup
+      .style("display", "block")
+      .style("left", (event.pageX + 15) + "px")
+      .style("top", (event.pageY + 15) + "px");
+  };
+
+  const updateHighlights = () => {
+    svg.selectAll("circle").each(function(d) {
+      const pointId = `${d["sepal.length"]}-${d["sepal.width"]}-${d["petal.length"]}-${d["petal.width"]}`;
+      if (selectedPoints.has(pointId)) {
+        d3.select(this).attr("r", 6).attr("stroke-width", 3).attr("stroke", "#333").attr("fill-opacity", 1);
+      } else {
+        d3.select(this).attr("r", 4).attr("stroke-width", 0.5).attr("stroke", "#fff").attr("fill-opacity", 0.8);
+      }
     });
-  });
+    
+    svg.selectAll("rect.histogram-bar").each(function() {
+      const bar = d3.select(this);
+      if (bar.classed("selected")) {
+        bar.attr("stroke", "#333").attr("stroke-width", 3);
+      } else {
+        bar.attr("stroke", "#fff").attr("stroke-width", 1);
+      }
+    });
+  };
 
-  const x = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.year))
-    .range([0, width]);
+  svg.append("style")
+      .text(`
+        circle.hidden { fill: #000; fill-opacity: 0.1; r: 2px; }
+        circle.highlighted { stroke: #000; stroke-width: 3; r: 6; }
+        .brush .selection { fill: rgba(70, 130, 180, 0.3); stroke: steelblue; stroke-width: 2; }
+        .histogram-bar:hover { opacity: 0.7; cursor: pointer; }
+        .histogram-bar.selected { stroke: #333; stroke-width: 2; }
+        .tooltip { position: absolute; background: rgba(0,0,0,0.9); color: white; padding: 15px; border-radius: 8px; pointer-events: none; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .popup { position: absolute; background: white; border: 2px solid #3498db; border-radius: 8px; padding: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); z-index: 1001; max-width: 300px; }
+        .popup-close { position: absolute; top: 5px; right: 10px; cursor: pointer; font-size: 18px; font-weight: bold; color: #666; }
+        .popup-close:hover { color: #000; }
+      `);
 
-  const y = d3.scaleLinear()
-    .domain(d3.extent(aggregatedData, d => d.lifeExp))
-    .range([height, 0]);
+  const axisx = d3.axisBottom()
+      .ticks(5)
+      .tickSize(size * columns.length);
+  const xAxis = g => g.selectAll("g").data(x).join("g")
+      .attr("transform", (d, i) => `translate(${i * size},0)`)
+      .each(function(d) { return d3.select(this).call(axisx.scale(d)); })
+      .call(g => g.select(".domain").remove())
+      .call(g => g.selectAll(".tick line").attr("stroke", "#ddd"))
+      .call(g => g.selectAll(".tick text").style("font-size", "12px"));
 
-  const color = d3.scaleOrdinal()
-    .domain([...continentData.keys()])
-    .range(d3.schemeSet1);
+  const axisy = d3.axisLeft()
+      .ticks(5)
+      .tickSize(-size * columns.length);
+  const yAxis = g => g.selectAll("g").data(y).join("g")
+      .attr("transform", (d, i) => `translate(0,${i * size})`)
+      .each(function(d) { return d3.select(this).call(axisy.scale(d)); })
+      .call(g => g.select(".domain").remove())
+      .call(g => g.selectAll(".tick line").attr("stroke", "#ddd"))
+      .call(g => g.selectAll(".tick text").style("font-size", "12px"));
 
-  const line = d3.line()
-    .x(d => x(d.year))
-    .y(d => y(d.lifeExp));
+  svg.append("g").call(xAxis);
+  svg.append("g").call(yAxis);
 
-  const nestedData = d3.group(aggregatedData, d => d.continent);
+  svg.append("g")
+    .selectAll("text")
+    .data(columns)
+    .join("text")
+    .attr("transform", (d, i) => `translate(${i * size + size/2}, ${-25})`)
+    .style("text-anchor", "middle")
+    .style("font", "bold 16px sans-serif")
+    .style("fill", "#2c3e50")
+    .text(d => d.replace(".", " ").replace(/\b\w/g, l => l.toUpperCase()));
 
-  nestedData.forEach((values, continent) => {
-    g.append("path")
-      .datum(values.sort((a, b) => a.year - b.year))
+  svg.append("g")
+    .selectAll("text")
+    .data(columns)
+    .join("text")
+    .attr("transform", (d, i) => `translate(${-35}, ${i * size + size/2}) rotate(-90)`)
+    .style("text-anchor", "middle")
+    .style("font", "bold 16px sans-serif")
+    .style("fill", "#2c3e50")
+    .text(d => d.replace(".", " ").replace(/\b\w/g, l => l.toUpperCase()));
+
+  const cell = svg.append("g")
+    .selectAll("g")
+    .data(d3.cross(d3.range(columns.length), d3.range(columns.length)))
+    .join("g")
+      .attr("transform", ([i, j]) => `translate(${i * size},${j * size})`);
+
+  cell.append("rect")
       .attr("fill", "none")
-      .attr("stroke", color(continent))
-      .attr("stroke-width", 2)
-      .attr("d", line);
+      .attr("stroke", "#aaa")
+      .attr("stroke-width", 1.5)
+      .attr("x", padding / 2 + 0.5)
+      .attr("y", padding / 2 + 0.5)
+      .attr("width", size - padding)
+      .attr("height", size - padding);
 
-    g.selectAll(`.dot-${continent.replace(/\s+/g, '')}`)
-      .data(values)
-      .enter().append("circle")
-      .attr("cx", d => x(d.year))
-      .attr("cy", d => y(d.lifeExp))
-      .attr("r", 3)
-      .attr("fill", color(continent));
+  const tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
+  let selectedPoints = new Set();
+  let selectedHistogramBars = new Set();
+
+  cell.each(function([i, j]) {
+    const cellData = data.filter(d => !isNaN(d[columns[i]]) && !isNaN(d[columns[j]]));
+    
+    if (i === j) {
+      const histogramData = d3.histogram()
+        .domain(x[i].domain())
+        .thresholds(12)
+        (data.map(d => d[columns[i]]));
+
+      const yHist = d3.scaleLinear()
+        .domain([0, d3.max(histogramData, d => d.length)])
+        .range([size - padding / 2, padding / 2]);
+
+      d3.select(this).selectAll("rect.histogram-bar")
+        .data(histogramData)
+        .join("rect")
+        .attr("class", "histogram-bar")
+        .attr("x", d => x[i](d.x0))
+        .attr("y", d => yHist(d.length))
+        .attr("width", d => Math.max(0, x[i](d.x1) - x[i](d.x0) - 2))
+        .attr("height", d => yHist(0) - yHist(d.length))
+        .attr("fill", "steelblue")
+        .attr("opacity", 0.8)
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1)
+        .style("cursor", "pointer")
+        .on("mouseover", function(event, d) {
+          d3.select(this).attr("opacity", 1);
+          tooltip.transition().duration(200).style("opacity", .9);
+          tooltip.html(`Range: ${d.x0.toFixed(1)} - ${d.x1.toFixed(1)}<br/>Count: ${d.length} flowers`)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", function() {
+          d3.select(this).attr("opacity", 0.8);
+          tooltip.transition().duration(500).style("opacity", 0);
+        })
+        .on("click", function(event, d) {
+          event.stopPropagation();
+          const barId = `${columns[i]}-${d.x0}-${d.x1}`;
+          const pointsInBin = data.filter(point => point[columns[i]] >= d.x0 && point[columns[i]] < d.x1);
+          
+          if (selectedHistogramBars.has(barId)) {
+            selectedHistogramBars.delete(barId);
+            d3.select(this).classed("selected", false);
+            pointsInBin.forEach(point => {
+              const pointId = `${point["sepal.length"]}-${point["sepal.width"]}-${point["petal.length"]}-${point["petal.width"]}`;
+              selectedPoints.delete(pointId);
+            });
+          } else {
+            selectedHistogramBars.add(barId);
+            d3.select(this).classed("selected", true);
+            pointsInBin.forEach(point => {
+              const pointId = `${point["sepal.length"]}-${point["sepal.width"]}-${point["petal.length"]}-${point["petal.width"]}`;
+              selectedPoints.add(pointId);
+            });
+          }
+          updateHighlights();
+        });
+    } else {
+      d3.select(this).selectAll("circle")
+        .data(cellData)
+        .join("circle")
+        .attr("cx", d => x[i](d[columns[i]]))
+        .attr("cy", d => y[j](d[columns[j]]))
+        .attr("r", 4)
+        .attr("fill-opacity", 0.8)
+        .attr("fill", d => color(d.variety))
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 0.5)
+        .style("cursor", "pointer")
+        .on("mouseover", function(event, d) {
+          d3.select(this).attr("r", 6).attr("stroke-width", 2).attr("stroke", "#333");
+        })
+        .on("mouseout", function(event, d) {
+          const pointId = `${d["sepal.length"]}-${d["sepal.width"]}-${d["petal.length"]}-${d["petal.width"]}`;
+          if (!selectedPoints.has(pointId)) {
+            d3.select(this).attr("r", 4).attr("stroke-width", 0.5).attr("stroke", "#fff");
+          }
+        })
+        .on("click", function(event, d) {
+          event.stopPropagation();
+          console.log("Circle clicked:", d);
+          
+          // Show popup immediately (primary functionality)
+          showPointPopup(d, event);
+          
+          // Handle selection/highlighting (secondary)
+          const pointId = `${d["sepal.length"]}-${d["sepal.width"]}-${d["petal.length"]}-${d["petal.width"]}`;
+          if (selectedPoints.has(pointId)) {
+            selectedPoints.delete(pointId);
+          } else {
+            selectedPoints.add(pointId);
+          }
+          updateHighlights();
+        });
+    }
   });
 
-  g.append("g")
-    .attr("transform", `translate(0,${height})`)
-    .call(d3.axisBottom(x).tickFormat(d3.format("d")));
+  const brush = d3.brush()
+    .extent([[padding / 2, padding / 2], [size - padding / 2, size - padding / 2]])
+    .on("start brush end", function(event, [i, j]) {
+      if (i === j) return;
+      
+      const selection = event.selection;
+      if (selection) {
+        const [[x0, y0], [x1, y1]] = selection;
+        svg.selectAll("circle").classed("hidden", function(d) {
+          const cx = x[i](d[columns[i]]);
+          const cy = y[j](d[columns[j]]);
+          return cx < x0 || cx > x1 || cy < y0 || cy > y1;
+        });
+      } else {
+        svg.selectAll("circle").classed("hidden", false);
+      }
+    });
 
-  g.append("g")
-    .call(d3.axisLeft(y));
+  cell.filter(([i, j]) => i !== j).call(brush);
 
-  g.append("text")
-    .attr("transform", `translate(${width / 2}, ${height + 40})`)
-    .style("text-anchor", "middle")
-    .text("Year");
+  const histogramCells = svg.append("g")
+    .selectAll("g")
+    .data(columns)
+    .join("g")
+    .attr("transform", (d, i) => `translate(${(columns.length) * size},${i * size})`);
 
-  g.append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("y", 0 - margin.left)
-    .attr("x", 0 - (height / 2))
-    .attr("dy", "1em")
-    .style("text-anchor", "middle")
-    .text("Life Expectancy");
+  histogramCells.each(function(column, i) {
+    const histogramData = d3.histogram()
+      .domain(y[i].domain())
+      .thresholds(12)
+      (data.map(d => d[column]));
 
-  const legend = g.selectAll(".legend")
-    .data([...continentData.keys()])
-    .enter().append("g")
-    .attr("class", "legend")
-    .attr("transform", (d, i) => `translate(${width + 10},${i * 20})`);
+    const xHist = d3.scaleLinear()
+      .domain([0, d3.max(histogramData, d => d.length)])
+      .range([padding / 2, size - padding / 2]);
 
-  legend.append("rect")
-    .attr("x", 0)
-    .attr("width", 18)
-    .attr("height", 18)
-    .style("fill", color);
+    d3.select(this).selectAll("rect")
+      .data(histogramData)
+      .join("rect")
+      .attr("class", "histogram-bar")
+      .attr("x", padding / 2)
+      .attr("y", d => y[i](d.x1))
+      .attr("width", d => xHist(d.length) - xHist(0))
+      .attr("height", d => Math.max(0, y[i](d.x0) - y[i](d.x1) - 2))
+      .attr("fill", "steelblue")
+      .attr("opacity", 0.8)
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 1)
+      .style("cursor", "pointer")
+      .on("mouseover", function(event, d) {
+        d3.select(this).attr("opacity", 1);
+        tooltip.transition().duration(200).style("opacity", .9);
+        tooltip.html(`Range: ${d.x0.toFixed(1)} - ${d.x1.toFixed(1)}<br/>Count: ${d.length} flowers`)
+          .style("left", (event.pageX + 10) + "px")
+          .style("top", (event.pageY - 28) + "px");
+      })
+      .on("mouseout", function() {
+        d3.select(this).attr("opacity", 0.8);
+        tooltip.transition().duration(500).style("opacity", 0);
+      })
+      .on("click", function(event, d) {
+        event.stopPropagation();
+        const barId = `horizontal-${column}-${d.x0}-${d.x1}`;
+        const pointsInBin = data.filter(point => point[column] >= d.x0 && point[column] < d.x1);
+        
+        if (selectedHistogramBars.has(barId)) {
+          selectedHistogramBars.delete(barId);
+          d3.select(this).classed("selected", false);
+          pointsInBin.forEach(point => {
+            const pointId = `${point["sepal.length"]}-${point["sepal.width"]}-${point["petal.length"]}-${point["petal.width"]}`;
+            selectedPoints.delete(pointId);
+          });
+        } else {
+          selectedHistogramBars.add(barId);
+          d3.select(this).classed("selected", true);
+          pointsInBin.forEach(point => {
+            const pointId = `${point["sepal.length"]}-${point["sepal.width"]}-${point["petal.length"]}-${point["petal.width"]}`;
+            selectedPoints.add(pointId);
+          });
+        }
+        updateHighlights();
+      });
+  });
+
+  const legendData = [...new Set(data.map(d => d.variety))];
+  const legend = svg.append("g")
+    .attr("transform", `translate(${width - 150}, 30)`)
+    .selectAll("g")
+    .data(legendData)
+    .join("g")
+    .attr("transform", (d, i) => `translate(0, ${i * 25})`);
+
+  legend.append("circle")
+    .attr("r", 6)
+    .attr("fill", d => color(d))
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 1);
 
   legend.append("text")
-    .attr("x", 25)
-    .attr("y", 9)
-    .attr("dy", ".35em")
-    .style("text-anchor", "start")
-    .text(d => d);
-}
-
-function drawScatterPlot() {
-  const margin = { top: 20, right: 20, bottom: 60, left: 80 };
-  const width = 500 - margin.left - margin.right;
-  const height = 400 - margin.bottom - margin.top;
-
-  d3.select(scatterPlot.value).selectAll("*").remove();
-
-  const svg = d3.select(scatterPlot.value)
-    .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom);
-
-  const g = svg.append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-  const latestYear = d3.max(data, d => d.year);
-  const latestData = data.filter(d => d.year === latestYear);
-
-  const x = d3.scaleLog()
-    .domain(d3.extent(latestData, d => d.gdpPercap))
-    .range([0, width]);
-
-  const y = d3.scaleLog()
-    .domain(d3.extent(latestData, d => d.pop))
-    .range([height, 0]);
-
-  const color = d3.scaleOrdinal()
-    .domain([...new Set(latestData.map(d => d.continent))])
-    .range(d3.schemeSet2);
-
-  const radius = d3.scaleLinear()
-    .domain(d3.extent(latestData, d => d.lifeExp))
-    .range([3, 15]);
-
-  g.selectAll(".dot")
-    .data(latestData)
-    .enter().append("circle")
-    .attr("class", "dot")
-    .attr("r", d => radius(d.lifeExp))
-    .attr("cx", d => x(d.gdpPercap))
-    .attr("cy", d => y(d.pop))
-    .style("fill", d => color(d.continent))
-    .style("opacity", 0.7)
-    .on("mouseover", function(event, d) {
-      d3.select(this).style("opacity", 1).attr("stroke", "#000").attr("stroke-width", 2);
-      
-      const tooltip = d3.select("body").append("div")
-        .attr("class", "tooltip")
-        .style("opacity", 0);
-      
-      tooltip.transition()
-        .duration(200)
-        .style("opacity", .9);
-      tooltip.html(`${d.country}<br/>GDP: $${d.gdpPercap.toLocaleString()}<br/>Population: ${d.pop.toLocaleString()}`)
-        .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY - 28) + "px");
-    })
-    .on("mouseout", function() {
-      d3.select(this).style("opacity", 0.7).attr("stroke", "none");
-      d3.selectAll(".tooltip").remove();
-    });
-
-  g.append("g")
-    .attr("transform", `translate(0,${height})`)
-    .call(d3.axisBottom(x).tickFormat(d => `$${d.toLocaleString()}`));
-
-  g.append("g")
-    .call(d3.axisLeft(y).tickFormat(d => d.toExponential()));
-
-  g.append("text")
-    .attr("transform", `translate(${width / 2}, ${height + 50})`)
-    .style("text-anchor", "middle")
-    .text("GDP per Capita");
-
-  g.append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("y", 0 - margin.left)
-    .attr("x", 0 - (height / 2))
-    .attr("dy", "1em")
-    .style("text-anchor", "middle")
-    .text("Population");
-}
-
-function drawPieChart() {
-  const width = 400;
-  const height = 400;
-  const radius = Math.min(width, height) / 2 - 20;
-
-  d3.select(pieChart.value).selectAll("*").remove();
-
-  const svg = d3.select(pieChart.value)
-    .append("svg")
-    .attr("width", width)
-    .attr("height", height);
-
-  const g = svg.append("g")
-    .attr("transform", `translate(${width / 2},${height / 2})`);
-
-  const latestYear = d3.max(data, d => d.year);
-  const latestData = data.filter(d => d.year === latestYear);
-  
-  const continentAvgs = d3.rollup(latestData, 
-    v => d3.mean(v, d => d.lifeExp), 
-    d => d.continent
-  );
-
-  const pieData = Array.from(continentAvgs, ([continent, lifeExp]) => ({
-    continent,
-    lifeExp
-  }));
-
-  const color = d3.scaleOrdinal()
-    .domain(pieData.map(d => d.continent))
-    .range(d3.schemeSet3);
-
-  const pie = d3.pie()
-    .value(d => d.lifeExp)
-    .sort(null);
-
-  const arc = d3.arc()
-    .innerRadius(0)
-    .outerRadius(radius);
-
-  const labelArc = d3.arc()
-    .outerRadius(radius + 30)
-    .innerRadius(radius + 30);
-
-  const arcs = g.selectAll(".arc")
-    .data(pie(pieData))
-    .enter().append("g")
-    .attr("class", "arc");
-
-  arcs.append("path")
-    .attr("d", arc)
-    .attr("fill", d => color(d.data.continent))
-    .attr("stroke", "#fff")
-    .attr("stroke-width", 2)
-    .on("mouseover", function(event, d) {
-      d3.select(this).attr("opacity", 0.7);
-      
-      const tooltip = d3.select("body").append("div")
-        .attr("class", "tooltip")
-        .style("opacity", 0);
-      
-      tooltip.transition()
-        .duration(200)
-        .style("opacity", .9);
-      tooltip.html(`${d.data.continent}<br/>Avg Life Exp: ${d.data.lifeExp.toFixed(1)} years`)
-        .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY - 28) + "px");
-    })
-    .on("mouseout", function() {
-      d3.select(this).attr("opacity", 1);
-      d3.selectAll(".tooltip").remove();
-    });
-
-  arcs.append("text")
-    .attr("transform", d => `translate(${labelArc.centroid(d)})`)
-    .attr("dy", ".35em")
-    .style("text-anchor", "middle")
-    .style("font-size", "11px")
+    .attr("x", 15)
+    .attr("dy", "0.35em")
+    .style("font-size", "14px")
     .style("font-weight", "bold")
-    .text(d => {
-      const percent = ((d.endAngle - d.startAngle) / (2 * Math.PI) * 100).toFixed(1);
-      return `${d.data.continent} (${percent}%)`;
-    });
+    .text(d => d);
 }
 </script>
 
 <style scoped>
 .dashboard-container {
-  padding: 20px;
+  padding: 30px;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .chart-container {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   height: 100%;
+  min-height: 800px;
 }
 
 .chart-title {
   text-align: center;
-  margin-bottom: 20px;
-  color: #333;
-  font-size: 1.1rem;
-  font-weight: 600;
+  margin-bottom: 30px;
+  color: #2c3e50;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border-bottom: 3px solid #3498db;
+  padding-bottom: 15px;
 }
 
 .chart {
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: visible;
+  min-height: 700px;
 }
 
 :global(.tooltip) {
   position: absolute;
-  text-align: center;
-  padding: 8px;
-  font-size: 12px;
-  background: rgba(0, 0, 0, 0.8);
+  text-align: left;
+  padding: 15px;
+  font-size: 14px;
+  background: rgba(44, 62, 80, 0.95);
   color: white;
-  border-radius: 4px;
+  border-radius: 8px;
   pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+:global(.tooltip strong) {
+  color: #3498db;
+  font-size: 16px;
+}
+
+:global(svg) {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+:global(.brush .selection) {
+  stroke-dasharray: 5,5;
+  animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
 }
 </style>

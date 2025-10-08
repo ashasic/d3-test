@@ -1,29 +1,18 @@
-## What I did with the data
 
-### Bar Chart
-Basically just took the 2007 data, sorted countries by life expectancy and picked the top 20. Used different colors for continents.
 
-### Line Chart  
-Grouped all the data by continent and calculated average life expectancy for each year. Then just drew lines connecting the points over time.
+## What I did
 
-### Scatter Plot
-Used 2007 data again. Put GDP on x-axis and population on y-axis. Made circle size based on life expectancy. Used log scales because the numbers were all over the place.
+Built a scatterplot matrix for the iris dataset with histograms and interactions.
 
-### Pie Chart
-Calculated average life expectancy for each continent in 2007. Made pie slices proportional to those averages. Added percentages to make it clearer.
+### Main Features
 
-## Why I made these choices
+**Scatterplot Matrix**: Made a 4x4 grid where each cell shows the relationship between two variables. Used d3.cross to generate all combinations of the 4 iris measurements.
 
-- Used consistent colors across charts so continents always have same color
-- Added tooltips because it's easier to see exact numbers when you hover
-- Made titles simple and clear
-- Used D3 because that's what the assignment asked for
+**Histograms**: Put histograms on the diagonal instead of self-scatterplots since those don't make sense. Added horizontal histograms on the right side. Used d3.histogram to bin the data.
 
-## Technical stuff
+**Brushing**: Added brush selection using d3.brush. When you brush an area, points outside get hidden with the "hidden" class.
 
-- Loaded CSV data once and reused it for all charts
-- Used Vue.js because the template was already set up
-- Made it responsive with Bootstrap grid
-- Added some basic styling to make it look decent
+**Point Selection**: Click points to select them. Keep track of selected points with a Set and highlight them across all plots.
 
-The charts show different aspects of the same data - current state, trends over time, relationships between variables, and continental comparisons.
+**Histogram Interaction**: Click histogram bars to select all points in that range. 
+

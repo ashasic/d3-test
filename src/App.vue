@@ -1,6 +1,6 @@
 <script setup>
 import Chart from "./components/Charts.vue";
-const message = "My D3 Charts";
+const message = "Iris Scatterplot Matrix";
 
 </script>
 
